@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --color-eclipse-black: #1A0A00;
+  --color-puwf-fire: #FF6B00;
+  --color-aura-gold: #FFD600;
+  --color-battle-red: #FF3D6B;
+  --color-light-ash: #F5F0E8;
+}
