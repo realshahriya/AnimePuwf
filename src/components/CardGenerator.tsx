@@ -24,7 +24,7 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
         let text = await response.text();
 
         text = replacePlaceholders(text, result, universeSlug);
-        
+
         if (result.userImage) {
           text = injectUserImage(text, result.userImage, universeSlug);
         }
@@ -69,8 +69,8 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
         className="w-full max-w-[500px] shadow-2xl rounded-lg overflow-hidden border border-light-ash/10 bg-eclipse-black"
         ref={cardRef}
       >
-        <div 
-          dangerouslySetInnerHTML={{ __html: svgContent }} 
+        <div
+          dangerouslySetInnerHTML={{ __html: svgContent }}
           className="w-full h-auto block"
         />
       </motion.div>
@@ -97,18 +97,18 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
 
 function getSvgFileName(slug: string): string {
   const map: Record<string, string> = {
-    "one-piece": "anime_puwf_bounty_poster_skeleton.svg",
-    "naruto": "anime_puwf_bingo_book_skeleton.svg",
-    "dragon-ball-z": "anime_puwf_dbz_scouter_skeleton.svg",
-    "demon-slayer": "anime_puwf_demon_slayer_corps_record.svg",
-    "jujutsu-kaisen": "anime_puwf_jjk_sorcerer_file.svg"
+    "one-piece": "anime_puwf_one_piece_visible.svg",
+    "naruto": "anime_puwf_naruto_visible.svg",
+    "dragon-ball-z": "anime_puwf_dbz_visible.svg",
+    "demon-slayer": "anime_puwf_demon_slayer_visible.svg",
+    "jujutsu-kaisen": "anime_puwf_jjk_visible.svg"
   };
-  return map[slug] || "anime_puwf_bounty_poster_skeleton.svg";
+  return map[slug] || "anime_puwf_one_piece_visible.svg";
 }
 
 function replacePlaceholders(svg: string, result: PuwfResult & { userName: string; job?: string; hobby?: string; favCharacter?: string }, slug: string): string {
   let processed = svg;
-  
+
   const formattedJob = result.job ? `The ${result.job}`.toUpperCase() : "THE WANDERER";
   const formattedHobby = result.hobby ? `Master of ${result.hobby}` : "Unknown Jutsu";
 
@@ -122,7 +122,7 @@ function replacePlaceholders(svg: string, result: PuwfResult & { userName: strin
     processed = processed.replace(/\[ \?,\?\?\?,\?\?\?,\?\?\? \]/g, result.rank || "Unknown");
     // Maybe replace some generic text with their fav character connection if available
     if (result.favCharacter) {
-       processed = processed.replace(/DEAD OR ALIVE/, `RIVAL TO ${result.favCharacter.toUpperCase()}`);
+      processed = processed.replace(/DEAD OR ALIVE/, `RIVAL TO ${result.favCharacter.toUpperCase()}`);
     }
   } else if (slug === "naruto") {
     processed = processed.replace(/\[ e\.g\. Copy Ninja \]/g, formattedJob);
@@ -146,7 +146,7 @@ function replacePlaceholders(svg: string, result: PuwfResult & { userName: strin
 function injectUserImage(svg: string, base64Img: string, slug: string): string {
   // Define where the image should go based on the template
   let rect = { x: 0, y: 0, w: 0, h: 0, rx: 0 };
-  
+
   if (slug === "one-piece") {
     rect = { x: 130, y: 178, w: 420, h: 310, rx: 4 };
   } else if (slug === "naruto") {
