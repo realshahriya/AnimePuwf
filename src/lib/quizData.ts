@@ -18,48 +18,12 @@ export interface QuizQuestion {
 
 const PERSONALITY_QUESTIONS: QuizQuestion[] = [
   {
-    id: "q1",
-    text: "When you start a new personal project, what is your first move?",
+    id: "personality",
+    text: "Which of these best describes your core personality?",
     options: [
-      { text: "Dive in headfirst and figure it out as I go.", points: { type1: 3, type3: 1 } },
-      { text: "Spend days researching and planning every detail.", points: { type2: 3, type1: 1 } },
-      { text: "Gather a group of peers to brainstorm ideas together.", points: { type3: 3, type2: 1 } }
-    ]
-  },
-  {
-    id: "q2",
-    text: "In a high-pressure situation, which of these best describes you?",
-    options: [
-      { text: "The person who takes command and makes the big calls.", points: { type1: 3, type2: 1 } },
-      { text: "The one who stays cool, calm, and analyzes the threat.", points: { type2: 3, type3: 1 } },
-      { text: "The one who steps in to support others and ensure everyone's safety.", points: { type3: 3, type1: 1 } }
-    ]
-  },
-  {
-    id: "q3",
-    text: "What motivates you most when you're working toward a goal?",
-    options: [
-      { text: "Achieving mastery and becoming the absolute best.", points: { type1: 3, type2: 1 } },
-      { text: "Understanding the underlying rules and core systems.", points: { type2: 3, type3: 1 } },
-      { text: "Feeling like I'm part of something bigger than myself.", points: { type3: 3, type1: 1 } }
-    ]
-  },
-  {
-    id: "q4",
-    text: "When facing a difficult confrontation, how do you handle it?",
-    options: [
-      { text: "Direct confrontation; speak my truth immediately.", points: { type1: 3, type3: 1 } },
-      { text: "Strategic negotiation; find a win-win or a tactical exit.", points: { type2: 3, type1: 1 } },
-      { text: "Patience and redirection; wait for the right moment.", points: { type3: 3, type2: 1 } }
-    ]
-  },
-  {
-    id: "q5",
-    text: "Which environment do you feel most comfortable in?",
-    options: [
-      { text: "A fast-paced, high-energy world of constant motion.", points: { type1: 3, type2: 1 } },
-      { text: "A quiet, well-organized space where I can focus deeply.", points: { type2: 3, type3: 1 } },
-      { text: "A thriving natural or collaborative setting with deep roots.", points: { type3: 3, type1: 1 } }
+      { text: "Bold, passionate, and always charging forward.", points: { type1: 5 } },
+      { text: "Calm, analytical, and highly strategic.", points: { type2: 5 } },
+      { text: "Loyal, adaptable, and deeply protective of others.", points: { type3: 5 } }
     ]
   }
 ];

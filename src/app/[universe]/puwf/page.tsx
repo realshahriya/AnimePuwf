@@ -1,10 +1,13 @@
+"use client";
+
 import { UNIVERSES } from "@/lib/data";
 import { QUIZ_DATA } from "@/lib/quizData";
 import { notFound } from "next/navigation";
 import QuizEngine from "@/components/QuizEngine";
+import React from "react";
 
-export default async function PuwfEnginePage({ params }: { params: Promise<{ universe: string }> }) {
-  const { universe: universeSlug } = await params;
+export default function PuwfEnginePage({ params }: { params: Promise<{ universe: string }> }) {
+  const { universe: universeSlug } = React.use(params);
   const universe = UNIVERSES.find(u => u.slug === universeSlug);
   
   if (!universe) return notFound();

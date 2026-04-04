@@ -7,7 +7,7 @@ export default function TermsPage() {
         
         <section>
           <h2 className="text-xl font-bold mb-3 text-light-ash">1. Acceptance of Terms</h2>
-          <p>By accessing, browsing, or using Anime Puwf ("the Platform"), you acknowledge that you have read, understood, and agree to be bound by these Terms of Service. If you do not agree, you must immediately cease use of the Platform.</p>
+          <p>By accessing, browsing, or using Anime Puwf (&quot;the Platform&quot;), you acknowledge that you have read, understood, and agree to be bound by these Terms of Service. If you do not agree, you must immediately cease use of the Platform.</p>
         </section>
 
         <section>
@@ -33,7 +33,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold mb-3 text-light-ash">4. User Generated Content & Conduct</h2>
-          <p>By generating customized digital "Cards", "Bounties", or "Ranks", you agree that you will not input usernames, texts, or prompts that are illegal, hateful, defamatory, or violate the rights of others. We reserve the right to ban users or block specific inputs at our sole discretion without prior warning.</p>
+          <p>By generating customized digital &quot;Cards&quot;, &quot;Bounties&quot;, or &quot;Ranks&quot;, you agree that you will not input usernames, texts, or prompts that are illegal, hateful, defamatory, or violate the rights of others. We reserve the right to ban users or block specific inputs at our sole discretion without prior warning.</p>
         </section>
 
         <section>

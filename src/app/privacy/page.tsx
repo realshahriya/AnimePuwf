@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-bold mb-3 text-light-ash">3. Third-Party Advertising & Cookies</h2>
           <p>To keep the Anime Puwf servers running, we display advertisements via third-party vendors (such as Google AdSense). These third-party vendors may use cookies to serve ads based on your prior visits to our Platform or other websites.</p>
-          <p className="mt-2">You may opt out of personalized advertising by visiting the respective ad network's privacy portal (e.g., Google's Ads Settings) or by utilizing browser-level Ad-Blockers. We unequivocally do not sell or lease your direct personal data to third-party data brokers.</p>
+          <p className="mt-2">You may opt out of personalized advertising by visiting the respective ad network&apos;s privacy portal (e.g., Google&apos;s Ads Settings) or by utilizing browser-level Ad-Blockers. We unequivocally do not sell or lease your direct personal data to third-party data brokers.</p>
         </section>
 
         <section>

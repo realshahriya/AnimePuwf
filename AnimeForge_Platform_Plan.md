@@ -1,5 +1,5 @@
 # 🔥 Anime Puwf — Platform Building Plan
-**Domain:** animepuwf.live  
+**Domain:** animepuwf.world  
 **Concept:** A personality-powered anime ability generator where users discover their power, ability, or bounty based on their favourite anime universe — with shareable cards to spread the experience.
 
 ---

@@ -20,9 +20,11 @@ export default function PuwfResultPage({ params }: { params: Promise<{ universe:
     const savedResult = localStorage.getItem("puwf_result");
     if (savedResult) {
       const parsed = JSON.parse(savedResult);
-      if (parsed) setResult(parsed);
+      if (parsed) {
+        setTimeout(() => setResult(parsed), 0);
+      }
     }
-  }, []);
+  }, []);  
 
   if (!result) {
     return (
