@@ -10,6 +10,14 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: 
 export const metadata: Metadata = {
   title: "Anime Puwf | Discover Your Power",
   description: "A personality-powered anime ability generator.",
+  icons: {
+    icon: [
+      { url: "/anime_puwf_icon_only.svg", type: "image/svg+xml" },
+      { url: "/anime_puwf_icon_only.png", type: "image/png" },
+    ],
+    shortcut: "/anime_puwf_icon_only.ico",
+    apple: "/anime_puwf_icon_only.png",
+  },
 };
 
 export default function RootLayout({

@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="125 75 400 165" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    
+  </defs>
+
+  <!-- Outer aura -->
+  <ellipse cx="175" cy="152" rx="48" ry="52" fill="#FF6B00" opacity="0.12" style="fill:rgb(255, 107, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.12;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <ellipse cx="175" cy="156" rx="34" ry="38" fill="#FF6B00" opacity="0.18" style="fill:rgb(255, 107, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.18;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Main flame -->
+  <path d="M175 90&#10;    C175 90 195 112 192 132&#10;    C190 144 200 140 198 130&#10;    C210 148 205 168 195 178&#10;    C190 183 185 188 175 191&#10;    C165 188 160 183 155 178&#10;    C145 168 140 148 152 130&#10;    C150 140 160 144 158 132&#10;    C155 112 175 90 175 90Z" fill="#FF6B00" style="fill:rgb(255, 107, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Inner flame -->
+  <path d="M175 110&#10;    C175 110 188 126 186 140&#10;    C184 150 175 155 175 155&#10;    C175 155 166 150 164 140&#10;    C162 126 175 110 175 110Z" fill="#FFD600" style="fill:rgb(255, 214, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Sparks -->
+  <circle cx="175" cy="83" r="4" fill="#FFD600" opacity="0.9" style="fill:rgb(255, 214, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.9;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="150" cy="98" r="3" fill="#FF6B00" opacity="0.7" style="fill:rgb(255, 107, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="141" cy="113" r="2" fill="#FFD600" opacity="0.5" style="fill:rgb(255, 214, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.5;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="200" cy="98" r="3" fill="#FF6B00" opacity="0.7" style="fill:rgb(255, 107, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="209" cy="115" r="2" fill="#FFD600" opacity="0.5" style="fill:rgb(255, 214, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.5;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <circle cx="175" cy="198" r="5" fill="#FF3D6B" opacity="0.55" style="fill:rgb(255, 61, 107);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Divider -->
+  <line x1="242" y1="105" x2="242" y2="198" stroke="#FF6B00" stroke-width="1.5" stroke-linecap="round" opacity="0.35" style="fill:rgb(0, 0, 0);stroke:rgb(255, 107, 0);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:miter;opacity:0.35;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Wordmark -->
+  <text x="265" y="162" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="64" style="fill:rgb(245, 240, 232);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Arial Black&quot;, Arial, sans-serif;font-size:64px;font-weight:900;text-anchor:start;dominant-baseline:auto">Anime</text>
+  <text x="268" y="202" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="52" fill="#FF6B00" style="fill:rgb(255, 107, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Arial Black&quot;, Arial, sans-serif;font-size:52px;font-weight:900;text-anchor:start;dominant-baseline:auto">Puwf</text>
+
+  <!-- Tagline -->
+  <text x="270" y="228" font-family="Arial, sans-serif" font-weight="700" font-size="11" fill="#FFD600" letter-spacing="5" style="fill:rgb(255, 214, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:Arial, sans-serif;font-size:11px;font-weight:700;text-anchor:start;dominant-baseline:auto">FORGE YOUR POWER</text>
+
+</svg>

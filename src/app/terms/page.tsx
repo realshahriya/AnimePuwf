@@ -1,6 +1,6 @@
 export default function TermsPage() {
   return (
-    <main className="w-full max-w-4xl mx-auto px-6 py-20 flex-grow text-light-ash">
+    <main className="w-full max-w-4xl mx-auto px-6 pt-32 pb-20 flex-grow text-light-ash">
       <h1 className="font-heading text-4xl md:text-5xl font-bold mb-8 text-puwf-fire">Terms of Service</h1>
       <div className="space-y-8 text-light-ash/80 leading-relaxed text-sm">
         <p className="italic">Last Updated: {new Date().toLocaleDateString()}</p>

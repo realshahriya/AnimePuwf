@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Navbar() {
@@ -10,14 +10,17 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="w-full relative z-50 px-6 py-4 flex items-center justify-between border-b border-light-ash/10 bg-eclipse-black/80 backdrop-blur-md">
-      <Link href="/" className="flex items-center gap-2 group z-10">
-        <div className="p-2 bg-puwf-fire rounded-lg group-hover:shadow-[0_0_15px_rgba(255,107,0,0.5)] transition-all">
-          <Flame className="w-5 h-5 text-eclipse-black" />
-        </div>
-        <span className="font-heading font-bold text-xl tracking-wide text-light-ash hidden sm:block">
-          AnimePuwf
-        </span>
+    <nav className="w-[95%] max-w-6xl mx-auto fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 flex items-center justify-between border border-light-ash/10 bg-eclipse-black/80 backdrop-blur-lg rounded-2xl shadow-2xl">
+      <Link href="/" className="flex items-center group z-10 mr-4">
+        <Image 
+          src="/anime_puwf_emblem_bgless.svg" 
+          alt="Anime Puwf Logo" 
+          width={150}
+          height={60}
+          priority
+          draggable={false}
+          className="h-14 w-auto group-hover:drop-shadow-[0_0_8px_rgba(255,107,0,0.4)] transition-all select-none pointer-events-none"
+        />
       </Link>
 
       {/* Desktop Navigation Links */}

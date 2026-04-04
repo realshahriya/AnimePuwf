@@ -3,7 +3,7 @@ import { CATEGORIES } from '@/lib/data';
 
 export default function UniversesLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full max-w-7xl mx-auto flex flex-col min-h-[60vh] py-8 px-6">
+    <div className="w-full max-w-7xl mx-auto flex flex-col min-h-[60vh] pt-32 pb-8 px-6">
       <div className="flex justify-center md:justify-start gap-8 border-b border-light-ash/10 pb-6 mb-8 mt-4 overflow-x-auto">
         {CATEGORIES.map(cat => (
           <Link 
