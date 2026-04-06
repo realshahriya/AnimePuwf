@@ -2,6 +2,7 @@ import { UNIVERSES } from "@/lib/data";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import UniverseNav from "@/components/UniverseNav";
+import AdBanner from "@/components/AdBanner";
 
 export default async function UniverseLayout({ children, params }: { children: React.ReactNode, params: Promise<{ universe: string }> }) {
   const { universe: universeSlug } = await params;
@@ -59,10 +60,20 @@ export default async function UniverseLayout({ children, params }: { children: R
       {/* Persistent Sub-Navigation */}
       <UniverseNav universeSlug={universe.slug} colorScheme={universe.colorScheme} />
 
+      {/* Ad — leaderboard below nav, desktop */}
+      <div className="hidden md:flex w-full justify-center px-6 pt-6">
+        <AdBanner type="leaderboard" />
+      </div>
+
       {/* Dynamic Page Content */}
-      <main className="w-full flex-grow flex flex-col py-12">
+      <main className="w-full flex-grow flex flex-col py-8">
         {children}
       </main>
+
+      {/* Ad — mobile sticky bottom */}
+      <div className="flex md:hidden w-full justify-center px-4 pb-6">
+        <AdBanner type="mobile" />
+      </div>
     </div>
   );
 }

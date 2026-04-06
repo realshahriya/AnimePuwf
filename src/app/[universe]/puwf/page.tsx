@@ -4,6 +4,7 @@ import { UNIVERSES } from "@/lib/data";
 import { QUIZ_DATA } from "@/lib/quizData";
 import { notFound } from "next/navigation";
 import QuizEngine from "@/components/QuizEngine";
+import AdBanner from "@/components/AdBanner";
 import React from "react";
 
 export default function PuwfEnginePage({ params }: { params: Promise<{ universe: string }> }) {
@@ -25,12 +26,22 @@ export default function PuwfEnginePage({ params }: { params: Promise<{ universe:
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col">
       <QuizEngine 
         universeSlug={universeSlug} 
         questions={questions} 
         colorScheme={universe.colorScheme} 
       />
+
+      {/* Leaderboard ad — desktop, below quiz */}
+      <div className="hidden md:flex w-full justify-center px-6 pb-10">
+        <AdBanner type="leaderboard" />
+      </div>
+
+      {/* Mobile ad — below quiz */}
+      <div className="flex md:hidden w-full justify-center px-4 pb-8">
+        <AdBanner type="mobile" />
+      </div>
     </div>
   );
 }

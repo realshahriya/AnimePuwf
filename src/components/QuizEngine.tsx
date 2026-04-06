@@ -19,6 +19,8 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
   const [userHobby, setUserHobby] = useState("");
   const [userFavCharacter, setUserFavCharacter] = useState("");
   const [userImage, setUserImage] = useState<string>("");
+  const [isImageProcessing, setIsImageProcessing] = useState(false);
+  const [imageScanned, setImageScanned] = useState(false);
   const [userPersonality, setUserPersonality] = useState<Record<string, number> | null>(null);
   
   const [step, setStep] = useState(0); // 0: Name/Job, 1: Hobby/Fav, 2: Personality, 3: Image
@@ -52,9 +54,17 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsImageProcessing(true);
+      setImageScanned(false);
+      setUserImage("");
       const reader = new FileReader();
       reader.onloadend = () => {
-        setUserImage(reader.result as string);
+        // Simulate scan delay for effect
+        setTimeout(() => {
+          setUserImage(reader.result as string);
+          setIsImageProcessing(false);
+          setImageScanned(true);
+        }, 1200);
       };
       reader.readAsDataURL(file);
     }
@@ -227,14 +237,65 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
             <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">For your identification card</p>
             
             <div 
-              className="w-full h-48 border-2 border-dashed border-light-ash/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-puwf-fire/50 overflow-hidden relative mb-8"
-              onClick={() => fileInputRef.current?.click()}
+              className={`w-full h-56 border-2 border-dashed rounded-xl flex flex-col items-center justify-center overflow-hidden relative mb-4 transition-all duration-300 ${
+                isImageProcessing ? "border-puwf-fire/60 bg-puwf-fire/5" :
+                imageScanned ? "border-green-500/60 bg-green-500/5" :
+                "border-light-ash/20 hover:border-puwf-fire/50 cursor-pointer"
+              }`}
+              onClick={() => !isImageProcessing && fileInputRef.current?.click()}
             >
-              {userImage ? (
-                <Image src={userImage} alt="User" fill style={{ objectFit: "cover" }} />
-              ) : (
-                <span className="text-light-ash/40 font-heading tracking-widest uppercase">Tap to Upload Image<br/>(Optional)</span>
+              {/* Processing State */}
+              {isImageProcessing && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-eclipse-black/60 backdrop-blur-sm z-10"
+                >
+                  {/* Scanning line animation */}
+                  <motion.div
+                    className="absolute left-0 right-0 h-0.5 bg-puwf-fire/70"
+                    animate={{ top: ["10%", "90%", "10%"] }}
+                    transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
+                    style={{ boxShadow: "0 0 12px 2px rgba(255,107,0,0.6)" }}
+                  />
+                  <div className="w-14 h-14 border-4 border-light-ash/10 border-t-puwf-fire rounded-full animate-spin mb-4" />
+                  <span className="font-mono text-puwf-fire text-xs tracking-[0.3em] uppercase animate-pulse">Scanning Matrix...</span>
+                </motion.div>
               )}
+
+              {/* Success overlay flash */}
+              {imageScanned && userImage && (
+                <motion.div
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 0 }}
+                  transition={{ delay: 0.6, duration: 0.5 }}
+                  className="absolute inset-0 bg-green-500/20 z-20 flex items-center justify-center pointer-events-none"
+                >
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.5)]"
+                  >
+                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {/* Image preview */}
+              {userImage ? (
+                <Image src={userImage} alt="User Portrait" fill style={{ objectFit: "cover" }} />
+              ) : !isImageProcessing ? (
+                <div className="flex flex-col items-center gap-3">
+                  <svg className="w-10 h-10 text-light-ash/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-4m0 0V8m0 4H8m4 0h4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-light-ash/40 font-heading tracking-widest uppercase text-sm text-center">Tap to Upload Portrait<br/><span className="text-xs opacity-60">(Optional)</span></span>
+                </div>
+              ) : null}
+
               <input 
                 type="file" 
                 accept="image/*" 
@@ -244,11 +305,27 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
               />
             </div>
 
+            {/* Re-upload hint after image selected */}
+            {userImage && !isImageProcessing && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center text-light-ash/40 text-xs font-mono tracking-widest uppercase mb-6 cursor-pointer hover:text-puwf-fire transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                ↑ Tap to change portrait
+              </motion.p>
+            )}
+            {!userImage && <div className="mb-6" />}
+
             <button
               onClick={finishAndCompute}
-              className={`w-full py-4 rounded-xl font-bold tracking-widest uppercase transition-all shadow-xl ${activeColor}`}
+              disabled={isImageProcessing}
+              className={`w-full py-4 rounded-xl font-bold tracking-widest uppercase transition-all shadow-xl ${
+                isImageProcessing ? "bg-light-ash/5 text-light-ash/20 cursor-not-allowed" : activeColor
+              }`}
             >
-              Generate Poster
+              {isImageProcessing ? "Processing..." : "Generate Poster"}
             </button>
           </motion.div>
         )}

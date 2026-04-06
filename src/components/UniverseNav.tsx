@@ -23,8 +23,8 @@ export default function UniverseNav({ universeSlug, colorScheme }: { universeSlu
   const activeColor = colorMap[colorScheme] || colorMap.blue;
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-6 mt-8 flex justify-center">
-      <nav className="flex space-x-2 bg-eclipse-black/40 backdrop-blur-xl rounded-2xl p-2 border border-light-ash/10 shadow-lg">
+    <div className="w-full max-w-5xl mx-auto px-4 md:px-6 mt-6 md:mt-8 flex justify-center">
+      <nav className="flex space-x-1 bg-eclipse-black/40 backdrop-blur-xl rounded-2xl p-1.5 border border-light-ash/10 shadow-lg overflow-x-auto">
         {navItems.map((item) => {
           const fullPath = `/${universeSlug}${item.path}`;
           const isActive = pathname === fullPath;
@@ -33,7 +33,7 @@ export default function UniverseNav({ universeSlug, colorScheme }: { universeSlu
             <Link 
               key={item.name} 
               href={fullPath}
-              className={`px-8 py-2.5 rounded-xl font-heading font-bold tracking-wide transition-all duration-300 ${isActive ? activeColor + " border" : "text-light-ash/50 hover:text-white hover:bg-white/5 border border-transparent"}`}
+              className={`px-5 md:px-8 py-2 md:py-2.5 text-sm rounded-xl font-heading font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${isActive ? activeColor + " border" : "text-light-ash/50 hover:text-white hover:bg-white/5 border border-transparent"}`}
             >
               {item.name}
             </Link>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { Info } from "lucide-react";
 
 interface AdBannerProps {
@@ -5,32 +8,84 @@ interface AdBannerProps {
   className?: string;
 }
 
-export default function AdBanner({ type = "leaderboard", className = "" }: AdBannerProps) {
-  // Determine dimensions based on type
-  const isLeaderboard = type === "leaderboard";
-  const isMobile = type === "mobile";
-  const isSquare = type === "square";
+const ADS = {
+  leaderboard: { key: "88f3cbcab548e0f6bf4b7c338ce13984", width: 728, height: 90 },
+  square:      { key: "1cdf68afed39325f413876e96d27c2d6", width: 300, height: 250 },
+  mobile:      { key: "c5b9682a5b952f2b2df249fe4360301e", width: 320, height: 50  },
+};
 
-  let styles = "w-full max-w-[728px] h-[90px]"; // default leaderboard
-  if (isMobile) styles = "w-full max-w-[320px] h-[50px] mx-auto";
-  if (isSquare) styles = "w-full aspect-square md:aspect-auto md:min-h-[250px]";
+function injectAd(container: HTMLDivElement, key: string, width: number, height: number) {
+  // Clear any previous content
+  container.innerHTML = "";
+
+  // 1. Set atOptions on window synchronously BEFORE the invoke script runs
+  (window as unknown as Record<string, unknown>).atOptions = {
+    key,
+    format: "iframe",
+    height,
+    width,
+    params: {},
+  };
+
+  // 2. Inject invoke script directly INTO the container div
+  //    The ad network reads atOptions and writes the iframe as a sibling/child of this script
+  const script = document.createElement("script");
+  script.type = "text/javascript";
+  script.src = `https://www.highperformanceformat.com/${key}/invoke.js`;
+  // No async — must execute synchronously so atOptions is in scope
+  container.appendChild(script);
+}
+
+export default function AdBanner({ type = "leaderboard", className = "" }: AdBannerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const injected = useRef(false);
+
+  const ad = ADS[type];
+
+  let wrapperStyles = "w-full max-w-[728px] h-[90px]";
+  if (type === "mobile") wrapperStyles = "w-full max-w-[320px] h-[50px] mx-auto";
+  if (type === "square") wrapperStyles = "w-full h-full";
+
+  useEffect(() => {
+    if (!containerRef.current || injected.current) return;
+    injected.current = true;
+    injectAd(containerRef.current, ad.key, ad.width, ad.height);
+
+    return () => {
+      injected.current = false;
+      if (containerRef.current) containerRef.current.innerHTML = "";
+      delete (window as unknown as Record<string, unknown>).atOptions;
+    };
+  }, [ad.key, ad.width, ad.height]);
 
   return (
-    <div className={`relative flex flex-col items-center justify-center bg-eclipse-black border border-light-ash/10 rounded-lg overflow-hidden group ${styles} ${className}`}>
-      {/* Ad Label */}
-      <div className="absolute top-0 right-0 bg-light-ash/10 px-2 py-0.5 rounded-bl-lg flex items-center gap-1 z-10 transition-colors group-hover:bg-light-ash/20">
-        <span className="text-[10px] text-light-ash/50 uppercase tracking-widest font-semibold">Advertisement</span>
-        <Info className="w-3 h-3 text-light-ash/40" />
+    <div className={`relative flex items-center justify-center overflow-hidden rounded-xl ${wrapperStyles} ${className}`}>
+      {/* Advertisement label */}
+      <div className="absolute top-0 right-0 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-bl-lg flex items-center gap-1 z-20">
+        <span className="text-[10px] text-light-ash/30 uppercase tracking-widest font-semibold">Advertisement</span>
+        <Info className="w-3 h-3 text-light-ash/20" />
       </div>
-      
-      {/* Subtle Visual Pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-puwf-fire/5 to-transparent opacity-50"></div>
-      
-      <div className="z-10 text-center px-4">
-        <span className="text-light-ash/30 font-medium text-sm">Ad Placeholder</span>
-        {isLeaderboard && <p className="text-light-ash/20 text-xs mt-1 font-mono">728 x 90</p>}
-        {isSquare && <p className="text-light-ash/20 text-xs mt-1 font-mono">Square format</p>}
-      </div>
+
+      {/* Ad injection target — iframe renders HERE */}
+      <div
+        ref={containerRef}
+        className="w-full h-full flex items-center justify-center"
+      />
+
+      {/* === Blending overlays (pointer-events-none) === */}
+
+      {/* 1. Dark vignette ring */}
+      <div
+        className="absolute inset-0 z-10 pointer-events-none rounded-xl"
+        style={{ background: "radial-gradient(ellipse at center, transparent 40%, rgba(10,10,12,0.75) 100%)" }}
+      />
+      {/* 2. Top & bottom edge fade */}
+      <div className="absolute inset-x-0 top-0 h-4 z-10 pointer-events-none bg-gradient-to-b from-eclipse-black/60 to-transparent rounded-t-xl" />
+      <div className="absolute inset-x-0 bottom-0 h-4 z-10 pointer-events-none bg-gradient-to-t from-eclipse-black/60 to-transparent rounded-b-xl" />
+      {/* 3. Subtle dark tint */}
+      <div className="absolute inset-0 z-10 pointer-events-none rounded-xl bg-eclipse-black/20" />
+      {/* 4. Border glow */}
+      <div className="absolute inset-0 z-10 pointer-events-none rounded-xl border border-light-ash/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" />
     </div>
   );
 }
