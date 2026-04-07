@@ -16,6 +16,16 @@ const config: UniverseCardConfig = {
   },
 
   imageRect: { x: 110, y: 160, w: 220, h: 260, rx: 6 },
+  outcomes: {
+    flame: ["Flame Breathing: Ninth Form - Rengoku", "Esoteric Art", "Blazing Universe", "Rising Scorching Sun"],
+    thunder: ["Thunder Breathing: Seventh Form - Honoikazuchi no Kami", "Sixfold Dash", "God Speed", "Rice Spirit"],
+    water: ["Water Breathing: Eleventh Form - Dead Calm", "Constant Flux", "Waterfall Basin", "Striking Tide"]
+  },
+  basicOutcomes: ["Swordsmith", "Demon Slayer Corps Trainee", "Kakushi Member", "Standard Breathing User", "Wisteria Mansion Helper"],
+  generateRank: (tier: number) => {
+    const ranks = ["Kakushi", "Mizunoto", "Kanoe", "Hinoto", "Tsuguko", "Hashira"];
+    return ranks[tier] || "Mizunoto";
+  },
 };
 
 export default config;
