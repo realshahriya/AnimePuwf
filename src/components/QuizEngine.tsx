@@ -53,21 +53,60 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setIsImageProcessing(true);
-      setImageScanned(false);
-      setUserImage("");
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        // Simulate scan delay for effect
-        setTimeout(() => {
-          setUserImage(reader.result as string);
-          setIsImageProcessing(false);
-          setImageScanned(true);
-        }, 1200);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    setIsImageProcessing(true);
+    setImageScanned(false);
+    setUserImage("");
+
+    // Use a canvas to resize + compress the image before storing.
+    // This is critical on mobile: raw HEIC/JPEG from cameras can be 4–8MB,
+    // blowing past localStorage's 5MB limit and hanging the page.
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl); // free memory immediately
+      const MAX_SIZE = 800; // px — enough resolution for the card portrait
+      let { width, height } = img;
+
+      // Scale down proportionally
+      if (width > MAX_SIZE || height > MAX_SIZE) {
+        if (width > height) {
+          height = Math.round((height * MAX_SIZE) / width);
+          width = MAX_SIZE;
+        } else {
+          width = Math.round((width * MAX_SIZE) / height);
+          height = MAX_SIZE;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setIsImageProcessing(false);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Export as JPEG — also normalises HEIC/HEIF from iOS automatically
+      const compressed = canvas.toDataURL("image/jpeg", 0.80);
+
+      setTimeout(() => {
+        setUserImage(compressed);
+        setIsImageProcessing(false);
+        setImageScanned(true);
+      }, 1200); // keep the scan animation
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      setIsImageProcessing(false);
+    };
+
+    img.src = objectUrl;
   };
 
   const handleNext = () => {
