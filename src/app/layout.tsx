@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
@@ -36,6 +37,7 @@ export default function RootLayout({
         </div>
         <Footer />
       </body>
+      <SpeedInsights/>
     </html>
   );
 }
