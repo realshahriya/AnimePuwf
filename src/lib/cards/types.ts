@@ -12,6 +12,7 @@ export interface CardResult {
   hobby?: string;
   favCharacter?: string;
   userImage?: string;
+  handle?: string;
   tier?: number;
 }
 
