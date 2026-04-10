@@ -105,7 +105,7 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
     
     // Clean handle to avoid double @
     const cleanHandle = handle.replace(/^@/, "");
-    const shareUrl = `${window.location.origin}/${universeSlug}/puwf/${cleanHandle}`;
+    const shareUrl = `${window.location.origin}/${universeSlug}/puwf/result/${cleanHandle}`;
     
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);

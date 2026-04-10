@@ -203,7 +203,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme, initi
       tier: result.tier,
     }));
 
-    setTimeout(() => { router.push(`/${universeSlug}/puwf/result`); }, 2000);
+    setTimeout(() => { router.push(`/${universeSlug}/puwf/result${cleanHandle ? `/${cleanHandle}` : ''}`); }, 2000);
   };
 
   // ─── Load previous result from Supabase ───────────────────────────────────
@@ -222,7 +222,8 @@ export default function QuizEngine({ universeSlug, questions, colorScheme, initi
       userImage: previousResult.user_image || "",
       tier: previousResult.tier,
     }));
-    router.push(`/${universeSlug}/puwf/result`);
+    const cleanResultHandle = previousResult.handle?.replace(/^@/, "");
+    router.push(`/${universeSlug}/puwf/result${cleanResultHandle ? `/${cleanResultHandle}` : ''}`);
   };
 
   // ─── Computing overlay ────────────────────────────────────────────────────
