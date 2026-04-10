@@ -48,13 +48,13 @@ export default function UniverseCard({ name, slug, colorScheme, description, del
         
         <div className="relative z-10 flex flex-col h-full justify-end">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-auto border ${colors.border} ${colors.bg} backdrop-blur-md`}>
-            <span className={`font-heading font-bold text-xl ${colors.text}`}>
+            <span className={`font-heading font-semibold text-xl ${colors.text}`}>
               {name.charAt(0)}
             </span>
           </div>
           
           <div className="p-4 rounded-xl bg-eclipse-black/30 backdrop-blur-md border border-light-ash/10 shadow-lg group-hover:bg-eclipse-black/50 group-hover:border-light-ash/20 transition-all duration-300">
-            <h3 className="text-2xl font-bold text-white mb-1 font-heading tracking-wide drop-shadow-sm transition-colors">{name}</h3>
+            <h3 className="text-2xl font-semibold text-white mb-1 font-heading tracking-wide drop-shadow-sm transition-colors">{name}</h3>
             <p className="text-light-ash/90 text-sm mb-3 line-clamp-2 leading-relaxed drop-shadow-sm">{description}</p>
             
             <div className={`flex items-center text-sm font-medium ${colors.text} drop-shadow-sm transition-colors mt-auto`}>

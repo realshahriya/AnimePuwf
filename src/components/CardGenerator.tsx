@@ -7,6 +7,9 @@ import { Download, RefreshCw } from "lucide-react";
 import { getCardConfig } from "@/lib/cards";
 import type { CardResult } from "@/lib/cards";
 
+import { submitResult } from "@/lib/supabase";
+import { createClient } from "@/lib/client";
+
 interface CardGeneratorProps {
   result: CardResult;
   universeSlug: string;
@@ -17,6 +20,7 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const submitted = useRef(false); // guard: submit to Supabase exactly once
 
   useEffect(() => {
     const loadCard = async () => {
@@ -44,6 +48,24 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
         }
 
         setSvgContent(svg);
+
+        // 5. Submit to Supabase — guarded so it fires exactly once per result
+        if (!submitted.current) {
+          submitted.current = true;
+          const supabase = createClient();
+          submitResult(supabase, {
+            universe: universeSlug,
+            user_name: result.userName ?? "Anonymous",
+            handle: (result as CardResult & { handle?: string }).handle,
+            result_class: result.resultClass,
+            outcome: result.outcome,
+            rank: result.rank,
+            trivia_score: (result as CardResult & { triviaScore?: number }).triviaScore,
+            trivia_total: (result as CardResult & { triviaTotal?: number }).triviaTotal,
+            tier: result.tier,
+          });
+        }
+
       } catch (err) {
         console.error("[CardGenerator] Failed to load card:", err);
         setError(true);
@@ -116,14 +138,14 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-sm sm:w-auto">
         <button
           onClick={handleDownload}
-          className="flex items-center justify-center gap-2 px-8 py-4 bg-puwf-fire hover:bg-puwf-fire/80 text-white rounded-xl font-bold tracking-widest uppercase transition-all shadow-lg hover:shadow-puwf-fire/20"
+          className="flex items-center justify-center gap-2 px-8 py-4 bg-puwf-fire hover:bg-puwf-fire/80 text-white rounded-xl font-semibold tracking-widest uppercase transition-all shadow-lg hover:shadow-puwf-fire/20"
         >
           <Download size={20} />
           Save Artifact
         </button>
         <button
           onClick={() => window.location.reload()}
-          className="flex items-center justify-center gap-2 px-8 py-4 bg-eclipse-black border border-light-ash/10 hover:border-light-ash/30 text-light-ash rounded-xl font-bold tracking-widest uppercase transition-all"
+          className="flex items-center justify-center gap-2 px-8 py-4 bg-eclipse-black border border-light-ash/10 hover:border-light-ash/30 text-light-ash rounded-xl font-semibold tracking-widest uppercase transition-all"
         >
           <RefreshCw size={20} />
           Retake

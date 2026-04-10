@@ -17,7 +17,7 @@ export default function Marquee() {
   const duplicatedHooks = [...hooks, ...hooks, ...hooks];
 
   return (
-    <div className="w-full overflow-hidden whitespace-nowrap bg-puwf-fire/10 border-y border-puwf-fire/20 py-3 relative flex items-center selection:bg-transparent">
+    <div className="w-full overflow-hidden whitespace-nowrap bg-eclipse-black/40 backdrop-blur-md border-y border-puwf-fire/20 py-3 relative flex items-center selection:bg-transparent shadow-[0_0_30px_rgba(255,107,0,0.05)]">
       {/* Gradient masks for fade out at screen edges */}
       <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-eclipse-black to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-eclipse-black to-transparent z-10" />

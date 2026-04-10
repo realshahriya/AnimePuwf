@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { QuizQuestion } from "@/lib/quizData";
 import { useRouter } from "next/navigation";
 import { calculateResult } from "@/lib/quizEngine";
+import { getRandomTrivia, TriviaQuestion } from "@/lib/triviaData";
+import { fetchByHandle, PuwfResultRow } from "@/lib/supabase";
+import { createClient } from "@/lib/client";
 
 interface QuizEngineProps {
   universeSlug: string;
@@ -13,21 +16,44 @@ interface QuizEngineProps {
   colorScheme: string;
 }
 
+// Steps:
+// 0 → Identity Matrix (Name + Job)
+// 1 → Personal Details (Hobby + Fav Character)
+// 2 → Personality Test (1 question from quizData)
+// 3 → Knowledge Test (3 random trivia questions, one at a time)
+// 4 → Provide Portrait (image upload)
+
+const TOTAL_STEPS = 5; // steps 0-4
+
 export default function QuizEngine({ universeSlug, questions, colorScheme }: QuizEngineProps) {
   const [userName, setUserName] = useState("");
   const [userJob, setUserJob] = useState("");
-  const [userHobby, setUserHobby] = useState("");
+  const [userHandle, setUserHandle] = useState("");        // X / Telegram handle
   const [userFavCharacter, setUserFavCharacter] = useState("");
   const [userImage, setUserImage] = useState<string>("");
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [imageScanned, setImageScanned] = useState(false);
   const [userPersonality, setUserPersonality] = useState<Record<string, number> | null>(null);
-  
-  const [step, setStep] = useState(0); // 0: Name/Job, 1: Hobby/Fav, 2: Personality, 3: Image
+
+  // Previous result lookup
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [previousResult, setPreviousResult] = useState<PuwfResultRow | null>(null);
+  const [showPreviousPrompt, setShowPreviousPrompt] = useState(false);
+
+  // Trivia state
+  const triviaQuestions = useMemo(() => getRandomTrivia(universeSlug, 3), [universeSlug]);
+  const [triviaIndex, setTriviaIndex] = useState(0);
+  const [triviaSelected, setTriviaSelected] = useState<number | null>(null);
+  const [triviaAnswered, setTriviaAnswered] = useState(false);
+  const [triviaScore, setTriviaScore] = useState(0);
+
+  const [step, setStep] = useState(0);
   const [isComputing, setIsComputing] = useState(false);
-  
+
   const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,18 +65,27 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const colorMap: Record<string, string> = {
-    blue: "bg-blue-500 hover:bg-blue-400 border-blue-500 text-eclipse-black",
+    blue:   "bg-blue-500 hover:bg-blue-400 border-blue-500 text-eclipse-black",
     orange: "bg-orange-500 hover:bg-orange-400 border-orange-500 text-eclipse-black",
     yellow: "bg-yellow-500 hover:bg-yellow-400 border-yellow-500 text-eclipse-black",
     purple: "bg-purple-500 hover:bg-purple-400 border-purple-500 text-white",
-    red: "bg-red-500 hover:bg-red-400 border-red-500 text-white"
+    red:    "bg-red-500 hover:bg-red-400 border-red-500 text-white",
   };
   const activeColor = colorMap[colorScheme] || colorMap.blue;
 
+  const accentText: Record<string, string> = {
+    blue: "text-blue-400", orange: "text-orange-400", yellow: "text-yellow-400",
+    purple: "text-purple-400", red: "text-red-400",
+  };
+  const accentBorder: Record<string, string> = {
+    blue: "border-blue-400", orange: "border-orange-400", yellow: "border-yellow-400",
+    purple: "border-purple-400", red: "border-red-400",
+  };
+  const accent = accentText[colorScheme] || accentText.orange;
+  const accentB = accentBorder[colorScheme] || accentBorder.orange;
+
+  // ─── Image upload ─────────────────────────────────────────────────────────
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,149 +94,176 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
     setImageScanned(false);
     setUserImage("");
 
-    // Use a canvas to resize + compress the image before storing.
-    // This is critical on mobile: raw HEIC/JPEG from cameras can be 4–8MB,
-    // blowing past localStorage's 5MB limit and hanging the page.
     const objectUrl = URL.createObjectURL(file);
     const img = new window.Image();
 
     img.onload = () => {
-      URL.revokeObjectURL(objectUrl); // free memory immediately
-      const MAX_SIZE = 800; // px — enough resolution for the card portrait
-      let { width, height } = img;
-
-      // Scale down proportionally
-      if (width > MAX_SIZE || height > MAX_SIZE) {
-        if (width > height) {
-          height = Math.round((height * MAX_SIZE) / width);
-          width = MAX_SIZE;
-        } else {
-          width = Math.round((width * MAX_SIZE) / height);
-          height = MAX_SIZE;
-        }
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        setIsImageProcessing(false);
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Export as JPEG — also normalises HEIC/HEIF from iOS automatically
-      const compressed = canvas.toDataURL("image/jpeg", 0.80);
-
-      setTimeout(() => {
-        setUserImage(compressed);
-        setIsImageProcessing(false);
-        setImageScanned(true);
-      }, 1200); // keep the scan animation
-    };
-
-    img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      setIsImageProcessing(false);
+      const MAX_SIZE = 800;
+      let { width, height } = img;
+      if (width > MAX_SIZE || height > MAX_SIZE) {
+        if (width > height) { height = Math.round((height * MAX_SIZE) / width); width = MAX_SIZE; }
+        else { width = Math.round((width * MAX_SIZE) / height); height = MAX_SIZE; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { setIsImageProcessing(false); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.80);
+      setTimeout(() => { setUserImage(compressed); setIsImageProcessing(false); setImageScanned(true); }, 1200);
     };
-
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); setIsImageProcessing(false); };
     img.src = objectUrl;
   };
 
-  const handleNext = () => {
-    if (step < 3) {
-      setStep(prev => prev + 1);
-    } else {
-      finishAndCompute();
+  // ─── Trivia answer handler ─────────────────────────────────────────────────
+  const handleTriviaAnswer = (selectedIdx: number, q: TriviaQuestion) => {
+    if (triviaAnswered) return;
+    setTriviaSelected(selectedIdx);
+    setTriviaAnswered(true);
+    if (selectedIdx === q.correct) {
+      setTriviaScore(s => s + 1);
     }
   };
 
+  const handleNextTrivia = () => {
+    if (triviaIndex < triviaQuestions.length - 1) {
+      setTriviaIndex(i => i + 1);
+      setTriviaSelected(null);
+      setTriviaAnswered(false);
+    } else {
+      // All trivia done — go to image upload
+      setStep(4);
+    }
+  };
+
+  // ─── Navigation ───────────────────────────────────────────────────────────
+  const handleNext = () => {
+    setStep(prev => prev + 1);
+  };
+
+  // ─── Step 2: look up handle in Supabase before advancing ─────────────────
+  const handleStep2Continue = async () => {
+    const clean = userHandle.trim().replace(/^@/, "");
+    if (!clean) return; // guard — button should already be disabled
+
+    setIsLookingUp(true);
+    const supabase = createClient();
+    const prev = await fetchByHandle(supabase, clean, universeSlug);
+    setIsLookingUp(false);
+
+    if (prev) {
+      setPreviousResult(prev);
+      setShowPreviousPrompt(true);
+    } else {
+      setStep(3);
+    }
+  };
+
+  // ─── Compute result ───────────────────────────────────────────────────────
   const finishAndCompute = () => {
     setIsComputing(true);
-    
-    // We only have one personality question now, mock the answers object
-    const finalAnswers = {
-      "personality": userPersonality || questions[0].options[0].points
-    };
-    
+    const finalAnswers = { personality: userPersonality || questions[0].options[0].points };
     const result = calculateResult(universeSlug, finalAnswers, userJob);
-    
+    const cleanHandle = userHandle.trim().replace(/^@/, "");
+
     localStorage.setItem("puwf_result", JSON.stringify({
       ...result,
       userName: userName || "Mysterious Warrior",
       job: userJob || "Wanderer",
-      hobby: userHobby || "Training",
+      handle: cleanHandle || undefined,
       favCharacter: userFavCharacter || "Unknown",
-      userImage: userImage
+      userImage: userImage,
+      triviaScore,
+      triviaTotal: triviaQuestions.length,
+      tier: result.tier,
     }));
 
-    setTimeout(() => {
-      router.push(`/${universeSlug}/puwf/result`);
-    }, 2000);
+    setTimeout(() => { router.push(`/${universeSlug}/puwf/result`); }, 2000);
   };
 
+  // ─── Load previous result from Supabase ───────────────────────────────────
+  const loadPreviousResult = () => {
+    if (!previousResult) return;
+    localStorage.setItem("puwf_result", JSON.stringify({
+      universe: previousResult.universe,
+      resultClass: previousResult.result_class,
+      outcome: previousResult.outcome,
+      rank: previousResult.rank,
+      userName: previousResult.user_name,
+      handle: previousResult.handle,
+      triviaScore: previousResult.trivia_score,
+      triviaTotal: previousResult.trivia_total,
+      favCharacter: userFavCharacter,
+      userImage: "",
+      tier: previousResult.tier,
+    }));
+    router.push(`/${universeSlug}/puwf/result`);
+  };
+
+  // ─── Computing overlay ────────────────────────────────────────────────────
   if (isComputing) {
     return (
       <div className="w-full flex-grow flex flex-col items-center justify-center min-h-[40vh]">
-        <div className="w-16 h-16 border-4 border-light-ash/20 border-t-puwf-fire rounded-full animate-spin mb-6"></div>
-        <h2 className="font-heading text-2xl font-bold text-white tracking-widest uppercase animate-pulse">Calculating Matrix...</h2>
+        <div className="w-16 h-16 border-4 border-light-ash/20 border-t-puwf-fire rounded-full animate-spin mb-6" />
+        <h2 className="font-heading text-2xl font-semibold text-white tracking-widest uppercase animate-pulse">Calculating Matrix...</h2>
         <p className="text-light-ash/50 mt-2 font-mono">Forging your definitive artifact</p>
       </div>
     );
   }
 
-  const progressPercent = ((step) / 4) * 100;
+  // Progress bar: step 3 subdivides into trivia sub-progress
+  const progressPercent = step < 3
+    ? (step / (TOTAL_STEPS - 1)) * 100
+    : step === 3
+      ? ((3 + triviaIndex / triviaQuestions.length) / (TOTAL_STEPS - 1)) * 100
+      : (step / (TOTAL_STEPS - 1)) * 100;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-6 pt-32 pb-20 flex flex-col items-center text-center">
-      <div className="w-full h-2 bg-eclipse-black/50 rounded-full mb-12 overflow-hidden border border-light-ash/10">
+    <div className="w-full max-w-2xl mx-auto px-4 md:px-6 pt-32 pb-20 flex flex-col items-center text-center">
+      {/* Progress bar */}
+      <div className="w-full h-1.5 bg-eclipse-black/50 rounded-full mb-10 overflow-hidden border border-light-ash/10">
         <div className={`h-full transition-all duration-500 ease-out ${activeColor}`} style={{ width: `${progressPercent}%` }} />
       </div>
 
       <AnimatePresence mode="wait">
+
+        {/* ── STEP 0: Identity Matrix ─────────────────────────────────────── */}
         {step === 0 && (
           <motion.div key="step0" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
-            <h2 className="font-heading text-3xl font-bold text-white mb-4">Identity Matrix</h2>
+            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 1 of 5</p>
+            <h2 className="font-heading text-3xl font-semibold text-white mb-3">Identity Matrix</h2>
             <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">Establish your base parameters</p>
-            
+
             <input
               type="text"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               placeholder="YOUR NAME"
-              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center uppercase mb-4"
+              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center mb-4"
             />
             <div className="relative w-full mb-8" ref={dropdownRef}>
               <div
                 onClick={() => setIsJobDropdownOpen(!isJobDropdownOpen)}
-                className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none hover:border-puwf-fire/50 transition-all text-center uppercase cursor-pointer flex justify-between items-center"
+                className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest hover:border-puwf-fire/50 transition-all text-center uppercase cursor-pointer flex justify-between items-center"
               >
-                <span className={`flex-1 ${!userJob ? "text-light-ash/50" : ""}`}>
-                  {userJob || "SELECT YOUR PROFESSION"}
-                </span>
+                <span className={`flex-1 ${!userJob ? "text-light-ash/50" : ""}`}>{userJob || "SELECT YOUR PROFESSION"}</span>
                 <span className={`text-light-ash/50 text-xs transition-transform duration-300 ${isJobDropdownOpen ? "rotate-180" : ""}`}>▼</span>
               </div>
               <AnimatePresence>
                 {isJobDropdownOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                     className="absolute top-full left-0 w-full mt-2 bg-eclipse-black border border-light-ash/10 rounded-xl overflow-hidden shadow-2xl z-50 backdrop-blur-xl"
                   >
                     {["Student", "Employed / Professional", "Freelancer / Creative", "Athlete / Fitness", "Entrepreneur / Business", "Other"].map((job) => (
                       <div
                         key={job}
-                        onClick={() => {
-                          setUserJob(job);
-                          setIsJobDropdownOpen(false);
-                        }}
+                        onClick={() => { setUserJob(job); setIsJobDropdownOpen(false); }}
                         className={`px-6 py-4 text-center font-heading tracking-widest text-sm uppercase cursor-pointer transition-all ${userJob === job ? activeColor : "text-light-ash/80 hover:bg-light-ash/10 hover:text-white"}`}
-                      >
-                        {job}
-                      </div>
+                      >{job}</div>
                     ))}
                   </motion.div>
                 )}
@@ -211,55 +273,68 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
             <button
               onClick={handleNext}
               disabled={!userName.trim() || !userJob}
-              className={`w-full py-4 rounded-xl font-bold tracking-widest uppercase transition-all shadow-xl ${(userName.trim() && userJob) ? activeColor + " cursor-pointer" : "bg-light-ash/5 text-light-ash/20 cursor-not-allowed"}`}
-            >
-              Continue
-            </button>
+              className={`w-full py-4 rounded-xl font-semibold tracking-widest uppercase transition-all shadow-xl ${(userName.trim() && userJob) ? activeColor + " cursor-pointer" : "bg-light-ash/5 text-light-ash/20 cursor-not-allowed"}`}
+            >Continue</button>
           </motion.div>
         )}
 
+        {/* ── STEP 1: Personal Details ───────────────────────────────────────── */}
         {step === 1 && (
           <motion.div key="step1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
-            <h2 className="font-heading text-3xl font-bold text-white mb-4">Personal Details</h2>
-            <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">Refining your profile</p>
-            
+            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 2 of 5</p>
+            <h2 className="font-heading text-3xl font-semibold text-white mb-3">Your Profile</h2>
+            <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">Link your identity</p>
+
+            {/* X / Telegram handle — used as persistent user ID */}
+            <div className="relative mb-4">
+              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-light-ash/30 font-heading text-lg select-none">@</span>
+              <input
+                type="text"
+                value={userHandle}
+                onChange={(e) => setUserHandle(e.target.value.replace(/^@+/, ""))}
+                placeholder="X OR TELEGRAM HANDLE"
+                className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl pl-10 pr-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center"
+              />
+            </div>
+            <p className="text-light-ash/30 text-xs font-mono tracking-widest uppercase mb-6">
+              Used to retrieve your previous poster
+            </p>
+
             <input
-              type="text"
-              value={userHobby}
-              onChange={(e) => setUserHobby(e.target.value)}
-              placeholder="HOBBY / PASSION"
-              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center uppercase mb-4"
-            />
-            <input
-              type="text"
-              value={userFavCharacter}
-              onChange={(e) => setUserFavCharacter(e.target.value)}
-              placeholder="FAV. CHARACTER FROM THIS VERSE"
-              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center uppercase mb-8"
+              type="text" value={userFavCharacter} onChange={(e) => setUserFavCharacter(e.target.value)} placeholder="FAV. CHARACTER FROM THIS VERSE"
+              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center mb-8"
             />
 
             <button
-              onClick={handleNext}
-              className={`w-full py-4 rounded-xl font-bold tracking-widest uppercase transition-all shadow-xl ${activeColor}`}
+              onClick={handleStep2Continue}
+              disabled={isLookingUp || !userHandle.trim()}
+              className={`w-full py-4 rounded-xl font-semibold tracking-widest uppercase transition-all shadow-xl flex items-center justify-center gap-3 ${
+                isLookingUp
+                  ? "bg-light-ash/5 text-light-ash/30 cursor-wait"
+                  : !userHandle.trim()
+                  ? "bg-light-ash/5 text-light-ash/20 cursor-not-allowed"
+                  : activeColor
+              }`}
             >
-              Continue
+              {isLookingUp ? (
+                <><div className="w-5 h-5 border-2 border-light-ash/20 border-t-white rounded-full animate-spin" /> Checking...​</>
+              ) : "Continue"}
             </button>
           </motion.div>
         )}
 
+        {/* ── STEP 2: Personality Test ────────────────────────────────────── */}
         {step === 2 && (
           <motion.div key="step2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full">
-            <h2 className="font-heading text-3xl font-bold text-white mb-4">Personality Test</h2>
+            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 3 of 5</p>
+            <h2 className="font-heading text-3xl font-semibold text-white mb-3">Personality Test</h2>
             <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">How would you describe your core nature?</p>
-            
-            <div className="w-full flex flex-col gap-4 max-w-md mx-auto mb-8">
+
+            <div className="w-full flex flex-col gap-4 max-w-md mx-auto">
               {questions[0]?.options.map((option, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => {
-                    setUserPersonality(option.points);
-                    handleNext();
-                  }} 
+                <button
+                  key={idx}
+                  onClick={() => { setUserPersonality(option.points); handleNext(); }}
                   className="w-full text-left px-6 py-5 rounded-xl bg-eclipse-black/40 border border-light-ash/10 hover:border-light-ash/50 hover:bg-eclipse-black/80 transition-all font-medium text-light-ash text-lg shadow-lg group relative overflow-hidden"
                 >
                   <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${activeColor}`} />
@@ -270,27 +345,100 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
           </motion.div>
         )}
 
-        {step === 3 && (
-          <motion.div key="step3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
-            <h2 className="font-heading text-3xl font-bold text-white mb-4">Provide Portrait</h2>
-            <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">For your identification card</p>
-            
-            <div 
+        {/* ── STEP 3: Knowledge Test (trivia) ─────────────────────────────── */}
+        {step === 3 && (() => {
+          const q = triviaQuestions[triviaIndex];
+          return (
+            <motion.div key={`trivia-${triviaIndex}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-lg">
+              <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 4 of 5 · Knowledge Test</p>
+              <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
+                Question {triviaIndex + 1} <span className="text-light-ash/30">/ {triviaQuestions.length}</span>
+              </h2>
+              <p className="text-light-ash/50 mb-8 font-mono text-xs uppercase tracking-widest">
+                Universe Knowledge · Score: {triviaScore}/{triviaIndex + (triviaAnswered ? 1 : 0)}
+              </p>
+
+              <div className={`p-5 md:p-6 rounded-2xl border mb-6 text-left ${accentB} bg-eclipse-black/40`}>
+                <p className="text-white font-heading text-lg md:text-xl leading-relaxed">{q.question}</p>
+              </div>
+
+              <div className="flex flex-col gap-3 mb-6">
+                {q.options.map((opt, idx) => {
+                  let btnStyle = "border-light-ash/10 text-light-ash/80 hover:border-light-ash/40 hover:bg-eclipse-black/60";
+                  if (triviaAnswered) {
+                    if (idx === q.correct) btnStyle = "border-green-500 bg-green-500/10 text-green-400";
+                    else if (idx === triviaSelected) btnStyle = "border-red-500 bg-red-500/10 text-red-400";
+                    else btnStyle = "border-light-ash/5 text-light-ash/30 opacity-50";
+                  }
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleTriviaAnswer(idx, q)}
+                      disabled={triviaAnswered}
+                      className={`w-full text-left px-5 py-4 rounded-xl border transition-all font-medium text-base relative overflow-hidden ${btnStyle} ${!triviaAnswered ? "cursor-pointer" : "cursor-default"}`}
+                    >
+                      <span className="font-mono text-xs mr-3 opacity-60">{String.fromCharCode(65 + idx)}.</span>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Explanation after answering */}
+              <AnimatePresence>
+                {triviaAnswered && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0 }}
+                    className={`rounded-xl px-5 py-4 mb-6 text-left text-sm leading-relaxed ${triviaSelected === q.correct ? "bg-green-500/10 border border-green-500/20 text-green-300" : "bg-red-500/10 border border-red-500/20 text-red-300"}`}
+                  >
+                    <span className="font-bold mr-2">{triviaSelected === q.correct ? "✓ Correct!" : "✗ Wrong!"}</span>
+                    {q.explanation}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {triviaAnswered && (
+                <button
+                  onClick={handleNextTrivia}
+                  className={`w-full py-4 rounded-xl font-semibold tracking-widest uppercase transition-all shadow-xl ${activeColor}`}
+                >
+                  {triviaIndex < triviaQuestions.length - 1 ? "Next Question →" : "View Results"}
+                </button>
+              )}
+            </motion.div>
+          );
+        })()}
+
+        {/* ── STEP 4: Provide Portrait ─────────────────────────────────────── */}
+        {step === 4 && (
+          <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
+            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 5 of 5</p>
+            <h2 className="font-heading text-3xl font-semibold text-white mb-2">Provide Portrait</h2>
+
+            {/* Trivia score recap */}
+            <div className="mb-6 px-4 py-2 rounded-xl bg-eclipse-black/40 border border-light-ash/10 inline-block">
+              <span className="font-mono text-xs text-light-ash/50 uppercase tracking-widest">Knowledge Score: </span>
+              <span className={`font-heading font-bold text-lg ${accent}`}>{triviaScore}/{triviaQuestions.length}</span>
+              <span className="font-mono text-xs text-light-ash/30 ml-2">
+                {triviaScore === triviaQuestions.length ? "· Perfect! Rank Boosted 🔥" :
+                 triviaScore >= 2 ? "· Good Knowledge" : "· Keep Learning"}
+              </span>
+            </div>
+
+            <p className="text-light-ash/60 mb-6 font-mono text-sm uppercase tracking-widest">For your identification card</p>
+
+            <div
               className={`w-full h-56 border-2 border-dashed rounded-xl flex flex-col items-center justify-center overflow-hidden relative mb-4 transition-all duration-300 ${
                 isImageProcessing ? "border-puwf-fire/60 bg-puwf-fire/5" :
-                imageScanned ? "border-green-500/60 bg-green-500/5" :
-                "border-light-ash/20 hover:border-puwf-fire/50 cursor-pointer"
+                imageScanned      ? "border-green-500/60 bg-green-500/5" :
+                                   "border-light-ash/20 hover:border-puwf-fire/50 cursor-pointer"
               }`}
               onClick={() => !isImageProcessing && fileInputRef.current?.click()}
             >
-              {/* Processing State */}
               {isImageProcessing && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   className="absolute inset-0 flex flex-col items-center justify-center bg-eclipse-black/60 backdrop-blur-sm z-10"
                 >
-                  {/* Scanning line animation */}
                   <motion.div
                     className="absolute left-0 right-0 h-0.5 bg-puwf-fire/70"
                     animate={{ top: ["10%", "90%", "10%"] }}
@@ -302,17 +450,13 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                 </motion.div>
               )}
 
-              {/* Success overlay flash */}
               {imageScanned && userImage && (
                 <motion.div
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 0 }}
-                  transition={{ delay: 0.6, duration: 0.5 }}
+                  initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ delay: 0.6, duration: 0.5 }}
                   className="absolute inset-0 bg-green-500/20 z-20 flex items-center justify-center pointer-events-none"
                 >
                   <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
+                    initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.5)]"
                   >
@@ -323,7 +467,6 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                 </motion.div>
               )}
 
-              {/* Image preview */}
               {userImage ? (
                 <Image src={userImage} alt="User Portrait" fill style={{ objectFit: "cover" }} />
               ) : !isImageProcessing ? (
@@ -331,41 +474,87 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                   <svg className="w-10 h-10 text-light-ash/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-4m0 0V8m0 4H8m4 0h4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-light-ash/40 font-heading tracking-widest uppercase text-sm text-center">Tap to Upload Portrait<br/><span className="text-xs opacity-60">(Optional)</span></span>
+                  <span className="text-light-ash/40 font-heading tracking-widest uppercase text-sm text-center">
+                    Tap to Upload Portrait<br /><span className="text-xs opacity-60">(Optional)</span>
+                  </span>
                 </div>
               ) : null}
 
-              <input 
-                type="file" 
-                accept="image/*" 
-                ref={fileInputRef} 
-                onChange={handleImageUpload} 
-                className="hidden" 
-              />
+              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
             </div>
 
-            {/* Re-upload hint after image selected */}
             {userImage && !isImageProcessing && (
               <motion.p
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                 className="text-center text-light-ash/40 text-xs font-mono tracking-widest uppercase mb-6 cursor-pointer hover:text-puwf-fire transition-colors"
                 onClick={() => fileInputRef.current?.click()}
-              >
-                ↑ Tap to change portrait
-              </motion.p>
+              >↑ Tap to change portrait</motion.p>
             )}
             {!userImage && <div className="mb-6" />}
 
             <button
               onClick={finishAndCompute}
               disabled={isImageProcessing}
-              className={`w-full py-4 rounded-xl font-bold tracking-widest uppercase transition-all shadow-xl ${
-                isImageProcessing ? "bg-light-ash/5 text-light-ash/20 cursor-not-allowed" : activeColor
-              }`}
+              className={`w-full py-4 rounded-xl font-semibold tracking-widest uppercase transition-all shadow-xl ${isImageProcessing ? "bg-light-ash/5 text-light-ash/20 cursor-not-allowed" : activeColor}`}
             >
               {isImageProcessing ? "Processing..." : "Generate Poster"}
             </button>
+          </motion.div>
+        )}
+
+      </AnimatePresence>
+
+      {/* ── Load Previous Modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showPreviousPrompt && previousResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-eclipse-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="w-full max-w-sm bg-eclipse-black border border-light-ash/10 rounded-2xl p-8 text-center shadow-2xl"
+            >
+              {/* Icon */}
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${activeColor}`}>
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12l4-4m-4 4 4 4" />
+                </svg>
+              </div>
+
+              <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>
+                Previous Session Found
+              </p>
+              <h3 className="font-heading text-2xl font-bold text-white mb-2">
+                Welcome back, {previousResult.user_name}!
+              </h3>
+              <p className="text-light-ash/50 text-sm font-mono mb-2">
+                @{previousResult.handle} · {previousResult.universe}
+              </p>
+              <div className={`inline-block px-4 py-1.5 rounded-lg text-sm font-mono mb-6 border ${accentB} ${accent} bg-eclipse-black/40`}>
+                {previousResult.outcome}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={loadPreviousResult}
+                  className={`w-full py-3.5 rounded-xl font-bold tracking-widest uppercase text-sm transition-all shadow-lg ${activeColor}`}
+                >
+                  ↩ Load Previous Poster
+                </button>
+                <button
+                  onClick={() => { setShowPreviousPrompt(false); setPreviousResult(null); setStep(3); }}
+                  className="w-full py-3.5 rounded-xl font-bold tracking-widest uppercase text-sm border border-light-ash/10 text-light-ash/60 hover:border-light-ash/30 hover:text-white transition-all"
+                >
+                  Start Fresh Quiz
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

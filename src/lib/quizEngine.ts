@@ -9,6 +9,7 @@ export interface PuwfResult {
   hobby?: string;
   favCharacter?: string;
   userImage?: string; // base64 encoded image
+  tier?: number;      // rank tier 1-5
 }
 
 /**
@@ -72,6 +73,7 @@ export function calculateResult(universeSlug: string, answers: Record<string, Re
     universe: universeSlug,
     resultClass: finalClass,
     outcome: finalOutcome,
-    rank: config.generateRank(profile.rankTier)
+    rank: config.generateRank(profile.rankTier),
+    tier: profile.rankTier
   };
 }

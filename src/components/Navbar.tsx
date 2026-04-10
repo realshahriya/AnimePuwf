@@ -72,7 +72,7 @@ export default function Navbar() {
                 key={idx}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-between px-6 py-4 text-light-ash/80 hover:text-puwf-fire hover:bg-white/5 transition-all border-b border-light-ash/5 last:border-0 font-heading font-bold tracking-widest uppercase text-sm"
+                className="flex items-center justify-between px-6 py-4 text-light-ash/80 hover:text-puwf-fire hover:bg-white/5 transition-all border-b border-light-ash/5 last:border-0 font-heading font-semibold tracking-widest uppercase text-sm"
               >
                 <span>{link.label}</span>
                 {link.hasPing && (
