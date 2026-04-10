@@ -7,11 +7,16 @@ import QuizEngine from "@/components/QuizEngine";
 import AdBanner from "@/components/AdBanner";
 import React from "react";
 
-export default function PuwfEnginePage({ params }: { params: Promise<{ universe: string }> }) {
-  const { universe: universeSlug } = React.use(params);
+export default function PuwfSharedPage({ params }: { params: Promise<{ universe: string, handle: string }> }) {
+  const { universe: universeSlug, handle } = React.use(params);
   const universe = UNIVERSES.find(u => u.slug === universeSlug);
   
   if (!universe) return notFound();
+
+  // If the path parameter matches our specific static pages, we shouldn't render the quiz.
+  // NextJS should naturally handle priority (result/page.tsx beats [handle]/page.tsx)
+  // but if needed we reject "result" here:
+  if (handle === "result") return notFound();
 
   const questions = QUIZ_DATA[universeSlug] || [];
 
@@ -31,7 +36,7 @@ export default function PuwfEnginePage({ params }: { params: Promise<{ universe:
         universeSlug={universeSlug} 
         questions={questions} 
         colorScheme={universe.colorScheme} 
-        initialReferrer={null}
+        initialReferrer={handle}
       />
 
       {/* Leaderboard ad — desktop, below quiz */}

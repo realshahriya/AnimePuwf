@@ -7,25 +7,19 @@ import { QuizQuestion } from "@/lib/quizData";
 import { useRouter } from "next/navigation";
 import { calculateResult } from "@/lib/quizEngine";
 import { getRandomTrivia, TriviaQuestion } from "@/lib/triviaData";
-import { fetchByHandle, PuwfResultRow } from "@/lib/supabase";
+import { fetchByHandle, PuwfResultRow, uploadUserImage, rewardBounty } from "@/lib/supabase";
 import { createClient } from "@/lib/client";
 
 interface QuizEngineProps {
   universeSlug: string;
   questions: QuizQuestion[];
   colorScheme: string;
+  initialReferrer?: string | null;
 }
 
-// Steps:
-// 0 → Identity Matrix (Name + Job)
-// 1 → Personal Details (Hobby + Fav Character)
-// 2 → Personality Test (1 question from quizData)
-// 3 → Knowledge Test (3 random trivia questions, one at a time)
-// 4 → Provide Portrait (image upload)
+const TOTAL_STEPS = 3; // steps 0-2 (Identity, Knowledge, Portrait)
 
-const TOTAL_STEPS = 5; // steps 0-4
-
-export default function QuizEngine({ universeSlug, questions, colorScheme }: QuizEngineProps) {
+export default function QuizEngine({ universeSlug, questions, colorScheme, initialReferrer }: QuizEngineProps) {
   const [userName, setUserName] = useState("");
   const [userJob, setUserJob] = useState("");
   const [userHandle, setUserHandle] = useState("");        // X / Telegram handle
@@ -34,6 +28,9 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [imageScanned, setImageScanned] = useState(false);
   const [userPersonality, setUserPersonality] = useState<Record<string, number> | null>(null);
+  const [previousUserImage, setPreviousUserImage] = useState<string>("");
+  const [usePreviousImage, setUsePreviousImage] = useState(false);
+  const [referrerHandle, setReferrerHandle] = useState<string | null>(initialReferrer || null);
 
   // Previous result lookup
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -134,7 +131,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
       setTriviaAnswered(false);
     } else {
       // All trivia done — go to image upload
-      setStep(4);
+      setStep(2);
     }
   };
 
@@ -143,30 +140,56 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
     setStep(prev => prev + 1);
   };
 
-  // ─── Step 2: look up handle in Supabase before advancing ─────────────────
-  const handleStep2Continue = async () => {
-    const clean = userHandle.trim().replace(/^@/, "");
-    if (!clean) return; // guard — button should already be disabled
+  // ─── Step 0: look up handle in Supabase before advancing ─────────────────
+  const handleInitialContinue = async () => {
+    // Basic validation
+    if (!userName.trim() || !userJob) return;
 
-    setIsLookingUp(true);
-    const supabase = createClient();
-    const prev = await fetchByHandle(supabase, clean, universeSlug);
-    setIsLookingUp(false);
+    // If handle is provided, lookup previous session. Otherwise, proceed directly.
+    const cleanHandle = userHandle.trim().replace(/^@/, "");
+    
+    if (cleanHandle) {
+      setIsLookingUp(true);
+      const supabase = createClient();
+      const prev = await fetchByHandle(supabase, cleanHandle, universeSlug);
+      setIsLookingUp(false);
 
-    if (prev) {
-      setPreviousResult(prev);
-      setShowPreviousPrompt(true);
-    } else {
-      setStep(3);
+      if (prev) {
+        setPreviousResult(prev);
+        if (prev.user_image) setPreviousUserImage(prev.user_image);
+        setShowPreviousPrompt(true);
+        return; // Wait for user decision in modal
+      }
     }
+    
+    // No previous result or no handle provided
+    setStep(1);
   };
 
   // ─── Compute result ───────────────────────────────────────────────────────
-  const finishAndCompute = () => {
+  const finishAndCompute = async () => {
     setIsComputing(true);
+    const cleanHandle = userHandle.trim().replace(/^@/, "");
+    const supabase = createClient();
+    
+    // 1. Handle Image Storage (Transition from base64 to Storage URL)
+    let finalImageUrl = usePreviousImage ? previousUserImage : userImage;
+
+    // If new image uploaded and we have a handle, upload to bucket
+    if (!usePreviousImage && userImage && cleanHandle) {
+      const uploadedUrl = await uploadUserImage(supabase, cleanHandle, userImage);
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+      }
+    }
+
+    // Trigger bounty background process if a referrer was tracked
+    if (referrerHandle && cleanHandle && referrerHandle.toLowerCase() !== cleanHandle.toLowerCase()) {
+      rewardBounty(supabase, referrerHandle).catch(console.error);
+    }
+
     const finalAnswers = { personality: userPersonality || questions[0].options[0].points };
     const result = calculateResult(universeSlug, finalAnswers, userJob);
-    const cleanHandle = userHandle.trim().replace(/^@/, "");
 
     localStorage.setItem("puwf_result", JSON.stringify({
       ...result,
@@ -174,7 +197,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
       job: userJob || "Wanderer",
       handle: cleanHandle || undefined,
       favCharacter: userFavCharacter || "Unknown",
-      userImage: userImage,
+      userImage: finalImageUrl,
       triviaScore,
       triviaTotal: triviaQuestions.length,
       tier: result.tier,
@@ -196,7 +219,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
       triviaScore: previousResult.trivia_score,
       triviaTotal: previousResult.trivia_total,
       favCharacter: userFavCharacter,
-      userImage: "",
+      userImage: previousResult.user_image || "",
       tier: previousResult.tier,
     }));
     router.push(`/${universeSlug}/puwf/result`);
@@ -208,16 +231,16 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
       <div className="w-full flex-grow flex flex-col items-center justify-center min-h-[40vh]">
         <div className="w-16 h-16 border-4 border-light-ash/20 border-t-puwf-fire rounded-full animate-spin mb-6" />
         <h2 className="font-heading text-2xl font-semibold text-white tracking-widest uppercase animate-pulse">Calculating Matrix...</h2>
-        <p className="text-light-ash/50 mt-2 font-mono">Forging your definitive artifact</p>
+        <p className="text-light-ash/50 mt-2 font-mono">Securing Matrix Connection & Records</p>
       </div>
     );
   }
 
-  // Progress bar: step 3 subdivides into trivia sub-progress
-  const progressPercent = step < 3
+  // Progress bar: step 1 subdivides into trivia sub-progress
+  const progressPercent = step < 1
     ? (step / (TOTAL_STEPS - 1)) * 100
-    : step === 3
-      ? ((3 + triviaIndex / triviaQuestions.length) / (TOTAL_STEPS - 1)) * 100
+    : step === 1
+      ? ((1 + triviaIndex / triviaQuestions.length) / (TOTAL_STEPS - 1)) * 100
       : (step / (TOTAL_STEPS - 1)) * 100;
 
   return (
@@ -232,7 +255,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
         {/* ── STEP 0: Identity Matrix ─────────────────────────────────────── */}
         {step === 0 && (
           <motion.div key="step0" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
-            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 1 of 5</p>
+            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 1 of 3</p>
             <h2 className="font-heading text-3xl font-semibold text-white mb-3">Identity Matrix</h2>
             <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">Establish your base parameters</p>
 
@@ -243,7 +266,8 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
               placeholder="YOUR NAME"
               className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center mb-4"
             />
-            <div className="relative w-full mb-8" ref={dropdownRef}>
+            
+            <div className="relative w-full mb-4" ref={dropdownRef}>
               <div
                 onClick={() => setIsJobDropdownOpen(!isJobDropdownOpen)}
                 className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest hover:border-puwf-fire/50 transition-all text-center uppercase cursor-pointer flex justify-between items-center"
@@ -260,7 +284,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                   >
                     {["Student", "Employed / Professional", "Freelancer / Creative", "Athlete / Fitness", "Entrepreneur / Business", "Other"].map((job) => (
                       <div
-                        key={job}
+                         key={job}
                         onClick={() => { setUserJob(job); setIsJobDropdownOpen(false); }}
                         className={`px-6 py-4 text-center font-heading tracking-widest text-sm uppercase cursor-pointer transition-all ${userJob === job ? activeColor : "text-light-ash/80 hover:bg-light-ash/10 hover:text-white"}`}
                       >{job}</div>
@@ -270,87 +294,50 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
               </AnimatePresence>
             </div>
 
-            <button
-              onClick={handleNext}
-              disabled={!userName.trim() || !userJob}
-              className={`w-full py-4 rounded-xl font-semibold tracking-widest uppercase transition-all shadow-xl ${(userName.trim() && userJob) ? activeColor + " cursor-pointer" : "bg-light-ash/5 text-light-ash/20 cursor-not-allowed"}`}
-            >Continue</button>
-          </motion.div>
-        )}
-
-        {/* ── STEP 1: Personal Details ───────────────────────────────────────── */}
-        {step === 1 && (
-          <motion.div key="step1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
-            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 2 of 5</p>
-            <h2 className="font-heading text-3xl font-semibold text-white mb-3">Your Profile</h2>
-            <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">Link your identity</p>
-
             {/* X / Telegram handle — used as persistent user ID */}
-            <div className="relative mb-4">
+            <div className="relative w-full mb-2 mt-4">
               <span className="absolute left-5 top-1/2 -translate-y-1/2 text-light-ash/30 font-heading text-lg select-none">@</span>
               <input
                 type="text"
                 value={userHandle}
                 onChange={(e) => setUserHandle(e.target.value.replace(/^@+/, ""))}
-                placeholder="X OR TELEGRAM HANDLE"
+                placeholder="HANDLE (FOR POSTER RECOVERY)"
                 className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl pl-10 pr-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center"
               />
             </div>
-            <p className="text-light-ash/30 text-xs font-mono tracking-widest uppercase mb-6">
-              Used to retrieve your previous poster
-            </p>
-
+            
             <input
-              type="text" value={userFavCharacter} onChange={(e) => setUserFavCharacter(e.target.value)} placeholder="FAV. CHARACTER FROM THIS VERSE"
-              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center mb-8"
+              type="text" 
+              value={userFavCharacter} 
+              onChange={(e) => setUserFavCharacter(e.target.value)} 
+              placeholder="FAV. CHARACTER FROM THIS VERSE"
+              className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center mb-8 mt-2"
             />
 
             <button
-              onClick={handleStep2Continue}
-              disabled={isLookingUp || !userHandle.trim()}
+              onClick={handleInitialContinue}
+              disabled={isLookingUp || !userName.trim() || !userJob}
               className={`w-full py-4 rounded-xl font-semibold tracking-widest uppercase transition-all shadow-xl flex items-center justify-center gap-3 ${
                 isLookingUp
                   ? "bg-light-ash/5 text-light-ash/30 cursor-wait"
-                  : !userHandle.trim()
+                  : (!userName.trim() || !userJob)
                   ? "bg-light-ash/5 text-light-ash/20 cursor-not-allowed"
                   : activeColor
               }`}
             >
               {isLookingUp ? (
-                <><div className="w-5 h-5 border-2 border-light-ash/20 border-t-white rounded-full animate-spin" /> Checking...​</>
+                <><div className="w-5 h-5 border-2 border-light-ash/20 border-t-white rounded-full animate-spin" /> Retrieving Data...​</>
               ) : "Continue"}
             </button>
           </motion.div>
         )}
 
-        {/* ── STEP 2: Personality Test ────────────────────────────────────── */}
-        {step === 2 && (
-          <motion.div key="step2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full">
-            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 3 of 5</p>
-            <h2 className="font-heading text-3xl font-semibold text-white mb-3">Personality Test</h2>
-            <p className="text-light-ash/60 mb-8 font-mono text-sm uppercase tracking-widest">How would you describe your core nature?</p>
-
-            <div className="w-full flex flex-col gap-4 max-w-md mx-auto">
-              {questions[0]?.options.map((option, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => { setUserPersonality(option.points); handleNext(); }}
-                  className="w-full text-left px-6 py-5 rounded-xl bg-eclipse-black/40 border border-light-ash/10 hover:border-light-ash/50 hover:bg-eclipse-black/80 transition-all font-medium text-light-ash text-lg shadow-lg group relative overflow-hidden"
-                >
-                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${activeColor}`} />
-                  <span className="relative z-10">{option.text}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── STEP 3: Knowledge Test (trivia) ─────────────────────────────── */}
-        {step === 3 && (() => {
+        {/* ── STEP 1: Knowledge Test (trivia) ─────────────────────────────── */}
+        {step === 1 && (() => {
           const q = triviaQuestions[triviaIndex];
           return (
             <motion.div key={`trivia-${triviaIndex}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-lg">
-              <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 4 of 5 · Knowledge Test</p>
+              <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 2 of 3 · Knowledge Test</p>
               <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
                 Question {triviaIndex + 1} <span className="text-light-ash/30">/ {triviaQuestions.length}</span>
               </h2>
@@ -409,10 +396,10 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
           );
         })()}
 
-        {/* ── STEP 4: Provide Portrait ─────────────────────────────────────── */}
-        {step === 4 && (
+        {/* ── STEP 2: Provide Portrait ─────────────────────────────────────── */}
+        {step === 2 && (
           <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-md">
-            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 5 of 5</p>
+            <p className={`font-mono text-xs tracking-[0.3em] uppercase mb-2 ${accent}`}>Step 3 of 3</p>
             <h2 className="font-heading text-3xl font-semibold text-white mb-2">Provide Portrait</h2>
 
             {/* Trivia score recap */}
@@ -467,7 +454,9 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                 </motion.div>
               )}
 
-              {userImage ? (
+              {usePreviousImage && previousUserImage ? (
+                <Image src={previousUserImage} alt="Previous Identity" fill style={{ objectFit: "cover" }} />
+              ) : userImage ? (
                 <Image src={userImage} alt="User Portrait" fill style={{ objectFit: "cover" }} />
               ) : !isImageProcessing ? (
                 <div className="flex flex-col items-center gap-3">
@@ -480,17 +469,36 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                 </div>
               ) : null}
 
-              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+              <input type="file" accept="image/*" ref={fileInputRef} onChange={(e) => { handleImageUpload(e); setUsePreviousImage(false); }} className="hidden" />
             </div>
 
-            {userImage && !isImageProcessing && (
+            {/* Reuse toggle if previous image exists */}
+            {previousUserImage && (
+              <div className="flex flex-col gap-3 mb-6 w-full">
+                <button
+                  onClick={() => { setUsePreviousImage(!usePreviousImage); if (!usePreviousImage) setImageScanned(true); }}
+                  className={`w-full py-3 rounded-xl border font-mono text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${
+                    usePreviousImage 
+                      ? "border-puwf-fire bg-puwf-fire/10 text-puwf-fire" 
+                      : "border-light-ash/10 text-light-ash/40 hover:border-light-ash/30"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {usePreviousImage ? "Using Previous Identity photo" : "Reuse Previous identity photo"}
+                </button>
+              </div>
+            )}
+
+            {(userImage || (usePreviousImage && previousUserImage)) && !isImageProcessing && (
               <motion.p
                 initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                 className="text-center text-light-ash/40 text-xs font-mono tracking-widest uppercase mb-6 cursor-pointer hover:text-puwf-fire transition-colors"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => { fileInputRef.current?.click(); }}
               >↑ Tap to change portrait</motion.p>
             )}
-            {!userImage && <div className="mb-6" />}
+            {!(userImage || (usePreviousImage && previousUserImage)) && <div className="mb-6" />}
 
             <button
               onClick={finishAndCompute}
@@ -548,7 +556,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme }: Qui
                   ↩ Load Previous Poster
                 </button>
                 <button
-                  onClick={() => { setShowPreviousPrompt(false); setPreviousResult(null); setStep(3); }}
+                  onClick={() => { setShowPreviousPrompt(false); setPreviousResult(null); setStep(1); }}
                   className="w-full py-3.5 rounded-xl font-bold tracking-widest uppercase text-sm border border-light-ash/10 text-light-ash/60 hover:border-light-ash/30 hover:text-white transition-all"
                 >
                   Start Fresh Quiz

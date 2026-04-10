@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { toPng } from "html-to-image";
 import { motion } from "framer-motion";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, RefreshCw, Share2, Check } from "lucide-react";
 import { getCardConfig } from "@/lib/cards";
 import type { CardResult } from "@/lib/cards";
 
@@ -19,6 +19,7 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
   const [svgContent, setSvgContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [copied, setCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const submitted = useRef(false); // guard: submit to Supabase exactly once
 
@@ -53,7 +54,7 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
         if (!submitted.current) {
           submitted.current = true;
           const supabase = createClient();
-          submitResult(supabase, {
+          const submission = await submitResult(supabase, {
             universe: universeSlug,
             user_name: result.userName ?? "Anonymous",
             handle: (result as CardResult & { handle?: string }).handle,
@@ -63,7 +64,15 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
             trivia_score: (result as CardResult & { triviaScore?: number }).triviaScore,
             trivia_total: (result as CardResult & { triviaTotal?: number }).triviaTotal,
             tier: result.tier,
+            user_image: result.userImage,
           });
+
+          if (submission.success) {
+            console.log("[CardGenerator] Result persisted to database.");
+          } else {
+            console.error("[CardGenerator] Database persistence failed:", submission.error);
+            // We don't block the UI, but we log the error clearly
+          }
         }
 
       } catch (err) {
@@ -88,6 +97,20 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
     } catch (err) {
       console.error("[CardGenerator] Download failed:", err);
     }
+  };
+
+  const handleShare = () => {
+    const handle = (result as CardResult & { handle?: string }).handle;
+    if (!handle) return;
+    
+    // Clean handle to avoid double @
+    const cleanHandle = handle.replace(/^@/, "");
+    const shareUrl = `${window.location.origin}/${universeSlug}/puwf/${cleanHandle}`;
+    
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    });
   };
 
   // ── Loading state ──────────────────────────────────────────────────────────
@@ -135,7 +158,7 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
         />
       </motion.div>
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-sm sm:w-auto">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-lg sm:w-auto flex-wrap justify-center">
         <button
           onClick={handleDownload}
           className="flex items-center justify-center gap-2 px-8 py-4 bg-puwf-fire hover:bg-puwf-fire/80 text-white rounded-xl font-semibold tracking-widest uppercase transition-all shadow-lg hover:shadow-puwf-fire/20"
@@ -143,6 +166,21 @@ export default function CardGenerator({ result, universeSlug }: CardGeneratorPro
           <Download size={20} />
           Save Artifact
         </button>
+
+        {((result as CardResult & { handle?: string }).handle) && (
+          <button
+            onClick={handleShare}
+            className={`flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold tracking-widest uppercase transition-all border ${
+              copied 
+                ? "bg-green-500/10 border-green-500/50 text-green-400" 
+                : "bg-eclipse-black border-puwf-fire/30 hover:border-puwf-fire text-puwf-fire"
+            }`}
+          >
+            {copied ? <Check size={20} /> : <Share2 size={20} />}
+            {copied ? "Link Copied!" : "Share & Earn 10K"}
+          </button>
+        )}
+
         <button
           onClick={() => window.location.reload()}
           className="flex items-center justify-center gap-2 px-8 py-4 bg-eclipse-black border border-light-ash/10 hover:border-light-ash/30 text-light-ash rounded-xl font-semibold tracking-widest uppercase transition-all"
