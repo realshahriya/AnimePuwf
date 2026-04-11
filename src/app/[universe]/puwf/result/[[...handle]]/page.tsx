@@ -17,6 +17,7 @@ export default function PuwfResultPage({ params }: { params: Promise<{ universe:
   const { universe: universeSlug, handle } = use(params);
   const universe = UNIVERSES.find(u => u.slug === universeSlug);
   const [result, setResult] = useState<ResultState | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   
@@ -36,22 +37,48 @@ export default function PuwfResultPage({ params }: { params: Promise<{ universe:
           userImage: row.user_image || "",
           tier: row.tier || 1
         });
+      } else {
+        setNotFound(true);
       }
     };
 
-    if (publicHandle) {
-      fetchPublicResult();
-    } else {
-      const savedResult = localStorage.getItem("puwf_result");
-      if (savedResult) {
+    let loadedFromLocal = false;
+    const savedResult = localStorage.getItem("puwf_result");
+    if (savedResult) {
+      try {
         const parsed = JSON.parse(savedResult);
-        if (parsed) {
+        // Verify local storage matches the handle (if provided in url)
+        if (parsed && (!publicHandle || (parsed.handle && parsed.handle.toLowerCase() === publicHandle.toLowerCase()))) {
           setTimeout(() => setResult(parsed), 0);
+          loadedFromLocal = true;
         }
+      } catch (e) {}
+    }
+
+    if (!loadedFromLocal) {
+      if (publicHandle) {
+        fetchPublicResult();
+      } else {
+        setNotFound(true);
       }
     }
+    
     setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
   }, [publicHandle, universeSlug]);
+
+  if (notFound) {
+    return (
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-3xl font-heading text-white mb-4 uppercase drop-shadow-lg">Artifact Not Found</h2>
+        <p className="text-light-ash/60 font-mono tracking-widest text-sm uppercase mb-8">This digital relic has been erased or never existed.</p>
+        <Link href={`/${universeSlug}`}>
+          <button className="px-8 py-4 bg-puwf-fire hover:bg-puwf-fire/80 text-white rounded-xl font-bold tracking-widest uppercase transition-all shadow-lg">
+            Forge New Identity
+          </button>
+        </Link>
+      </div>
+    );
+  }
 
   if (!result) {
     return (

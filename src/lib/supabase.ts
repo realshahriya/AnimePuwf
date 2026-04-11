@@ -27,28 +27,31 @@ export async function submitResult(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const table = supabase.from("puwf_results");
-    let query;
-
     if (row.handle) {
-      // Named user: upsert so same handle+universe is always one row
-      // REQUIREMENT: the table must have a unique constraint on (handle, universe)
-      query = table.upsert([row], { 
-        onConflict: "handle,universe", 
-        ignoreDuplicates: false 
-      });
+      // Step 1: Explicitly run an UPDATE first. This elegantly skips any UNIQUE constraint checks triggered randomly by upsert.
+      const { data, error: updateError } = await table
+        .update(row)
+        .match({ handle: row.handle, universe: row.universe })
+        .select();
+
+      if (updateError) {
+        console.error("[Supabase] Update failed:", updateError.message);
+        return { success: false, error: updateError.message };
+      }
+
+      // Step 2: If no target row was updated (meaning this is their first time), we clean INSERT.
+      if (!data || data.length === 0) {
+        const { error: insertError } = await table.insert([row]);
+        if (insertError) return { success: false, error: insertError.message };
+      }
+      
+      return { success: true };
     } else {
       // Anonymous (no handle): always insert a fresh row
-      query = table.insert([row]);
+      const { error } = await table.insert([row]);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
     }
-
-    const { error } = await query;
-    
-    if (error) {
-      console.error("[Supabase] Submission failed:", error.message, error.details);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     console.error("[Supabase] submitResult exception:", msg);
@@ -136,17 +139,31 @@ export async function uploadUserImage(
 ): Promise<string | null> {
   try {
     const cleanHandle = handle.replace(/^@/, "");
+    
+    // We are back to a strict 1-to-1 ID mapping! Every user gets exactly one static file.
     const fileName = `${cleanHandle}.jpg`;
     
-    // Convert dataUrl to a Blob
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
+    // Manually convert dataUrl base64 to a Blob to avoid fetch() polyfill crashing
+    const [header, base64Data] = dataUrl.split(",");
+    const mimeMatch = header.match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    
+    const byteString = atob(base64Data);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i);
+    }
+    
+    const blob = new Blob([arrayBuffer], { type: mimeType });
 
-    // Upload with upsert=true so the same handle always overwrites its own image
+    // Because RLS officially permits overwrites natively, we trigger the single 
+    // network request upsert flag for highly optimized throughput.
     const { error: uploadError } = await supabase.storage
       .from("users")
       .upload(fileName, blob, {
-        contentType: "image/jpeg",
+        contentType: mimeType,
         upsert: true
       });
 

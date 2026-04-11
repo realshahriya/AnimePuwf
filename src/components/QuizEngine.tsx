@@ -205,7 +205,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme, initi
       tier: result.tier,
     }));
 
-    setTimeout(() => { router.push(`/${universeSlug}/puwf/result${cleanHandle ? `/${cleanHandle}` : ''}`); }, 2000);
+    router.push(`/${universeSlug}/puwf/result${cleanHandle ? `/${cleanHandle}` : ''}`);
   };
 
   // ─── Load previous result from Supabase ───────────────────────────────────

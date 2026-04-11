@@ -11,6 +11,8 @@ export default function Footer() {
             alt="Anime Puwf Logo" 
             width={120}
             height={50}
+            priority
+            loading="eager"
             draggable={false}
             className="h-12 w-auto select-none pointer-events-none"
           />
