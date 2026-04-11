@@ -7,7 +7,7 @@ import { UNIVERSES } from "@/lib/data";
 
 export default function Home() {
   return (
-    <div className="w-full flex-grow flex flex-col items-center pb-24">
+    <div className="w-full overflow-x-hidden flex-grow flex flex-col items-center pb-24">
       <Hero />
       
       {/* Full width marquee hook */}

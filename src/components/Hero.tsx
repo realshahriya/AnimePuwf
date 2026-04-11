@@ -28,7 +28,7 @@ export default function Hero() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-aura-gold opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-aura-gold"></span>
           </span>
-          V1.01 Early Access LiveV1.0 Early Access Live
+          V1.01 Early Access Live
         </div>
 
         <h1 className="font-heading text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-semibold tracking-tight text-white mb-8 drop-shadow-2xl">
