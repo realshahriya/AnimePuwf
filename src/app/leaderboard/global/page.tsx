@@ -14,7 +14,18 @@ const RANK_MEDALS = ["🥇", "🥈", "🥉"];
 
 export default async function LeaderboardGlobalPage() {
   const supabase = await createClient();
-  const rows = await fetchGlobalLeaderboard(supabase, 50);
+  const data = await fetchGlobalLeaderboard(supabase, 5000);
+
+  const rows = [...data].sort((a, b) => {
+    const tierA = a.tier || 0;
+    const tierB = b.tier || 0;
+    if (tierB !== tierA) {
+      return tierB - tierA;
+    }
+    const valA = parseInt(a.rank?.replace(/[^0-9]/g, "") ?? "0");
+    const valB = parseInt(b.rank?.replace(/[^0-9]/g, "") ?? "0");
+    return valB - valA;
+  }).slice(0, 50);
 
   const universeName = (slug: string) =>
     UNIVERSES.find(u => u.slug === slug)?.name ?? slug;

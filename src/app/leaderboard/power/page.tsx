@@ -3,13 +3,13 @@ import { createClient } from "@/lib/server";
 
 export default async function LeaderboardPowerPage() {
   const supabase = await createClient();
-  const data = await fetchUniverseLeaderboard(supabase, "dragon-ball-z", 50);
+  const data = await fetchUniverseLeaderboard(supabase, "dragon-ball-z", 5000);
 
   const processed = data.map(row => {
     // Extract number from string like "Power Level: 9001"
     const value = parseInt(row.rank?.replace(/[^0-9]/g, "") ?? "0");
     return { ...row, powerValue: value };
-  }).sort((a, b) => b.powerValue - a.powerValue);
+  }).sort((a, b) => b.powerValue - a.powerValue).slice(0, 50);
 
   const rows = processed;
 

@@ -3,13 +3,13 @@ import { createClient } from "@/lib/server";
 
 export default async function LeaderboardBountiesPage() {
   const supabase = await createClient();
-  const data = await fetchUniverseLeaderboard(supabase, "one-piece", 50);
+  const data = await fetchUniverseLeaderboard(supabase, "one-piece", 5000);
 
   const processed = data.map(row => {
     // Extract number from string like "300,000,000 Berries"
     const value = parseInt(row.rank?.replace(/[^0-9]/g, "") ?? "0");
     return { ...row, bountyValue: value };
-  }).sort((a, b) => b.bountyValue - a.bountyValue);
+  }).sort((a, b) => b.bountyValue - a.bountyValue).slice(0, 50);
 
   const rows = processed;
 
