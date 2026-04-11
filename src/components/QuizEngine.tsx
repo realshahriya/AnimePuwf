@@ -108,7 +108,9 @@ export default function QuizEngine({ universeSlug, questions, colorScheme, initi
       if (!ctx) { setIsImageProcessing(false); return; }
       ctx.drawImage(img, 0, 0, width, height);
       const compressed = canvas.toDataURL("image/jpeg", 0.80);
-      setTimeout(() => { setUserImage(compressed); setIsImageProcessing(false); setImageScanned(true); }, 1200);
+      setUserImage(compressed);
+      setIsImageProcessing(false);
+      setImageScanned(true);
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); setIsImageProcessing(false); };
     img.src = objectUrl;
@@ -302,7 +304,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme, initi
                 type="text"
                 value={userHandle}
                 onChange={(e) => setUserHandle(e.target.value.replace(/^@+/, ""))}
-                placeholder="HANDLE (FOR POSTER RECOVERY)"
+                placeholder="Telegram / X username"
                 className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl pl-10 pr-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center"
               />
             </div>
@@ -311,7 +313,7 @@ export default function QuizEngine({ universeSlug, questions, colorScheme, initi
               type="text" 
               value={userFavCharacter} 
               onChange={(e) => setUserFavCharacter(e.target.value)} 
-              placeholder="FAV. CHARACTER FROM THIS VERSE"
+              placeholder="favorite character from this anime"
               className="w-full bg-eclipse-black/40 border border-light-ash/10 rounded-xl px-6 py-4 text-white font-heading tracking-widest focus:outline-none focus:border-puwf-fire/50 transition-all text-center mb-8 mt-2"
             />
 
